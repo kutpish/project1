@@ -4,6 +4,17 @@ import { QuestionPanel } from './components/QuestionPanel';
 import { ScorePanel } from './components/ScorePanel';
 import { generateQuestion } from './utils/mathGame';
 
+interface MathQuestion {
+  num1: number;
+  num2: number;
+  operation: string;
+  answer: number;
+}
+
+export function generateQuestion(): MathQuestion {
+  // ... rest of the code ...
+}
+
 function App() {
   const [question, setQuestion] = useState(generateQuestion());
   const [userAnswer, setUserAnswer] = useState('');
