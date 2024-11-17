@@ -1,92 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { Bell, Plus, Settings, Check, Trash2, Volume2, Clock, Sun, Moon } from 'lucide-react';
-import TodoList from './components/TodoList';
-import SettingsModal from './components/SettingsModal';
-import NewTodoModal from './components/NewTodoModal';
+import React, { useState, useCallback } from 'react';
+import { GameHeader } from './components/GameHeader';
+import { QuestionPanel } from './components/QuestionPanel';
+import { ScorePanel } from './components/ScorePanel';
+import { generateQuestion } from './utils/mathGame';
 
 function App() {
-  const [todos, setTodos] = useState(() => {
-    const saved = localStorage.getItem('todos');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [showSettings, setShowSettings] = useState(false);
-  const [showNewTodo, setShowNewTodo] = useState(false);
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('settings');
-    return saved ? JSON.parse(saved) : {
-      notifications: true,
-      sound: true,
-      soundVolume: 0.5,
-      reminderTime: 5,
-      theme: 'light',
-      notificationSound: 'ping'
-    };
-  });
+  const [question, setQuestion] = useState(generateQuestion());
+  const [userAnswer, setUserAnswer] = useState('');
+  const [score, setScore] = useState({ correct: 0, total: 0 });
+  const [feedback, setFeedback] = useState('');
+  const [feedbackColor, setFeedbackColor] = useState('text-gray-600');
+  const [consecutiveFailures, setConsecutiveFailures] = useState(0);
 
-  useEffect(() => {
-    localStorage.setItem('todos', JSON.stringify(todos));
-  }, [todos]);
-
-  useEffect(() => {
-    localStorage.setItem('settings', JSON.stringify(settings));
-    if (settings.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+  const checkAnswer = useCallback(() => {
+    const numAnswer = parseInt(userAnswer);
+    if (isNaN(numAnswer)) {
+      setFeedback('Please enter a number');
+      setFeedbackColor('text-yellow-500');
+      return;
     }
-  }, [settings]);
+
+    const isCorrect = numAnswer === question.answer;
+    setScore(prev => ({
+      correct: prev.correct + (isCorrect ? 1 : 0),
+      total: prev.total + 1
+    }));
+
+    if (isCorrect) {
+      setFeedback('Correct! 🎉');
+      setFeedbackColor('text-green-500');
+      setConsecutiveFailures(0);
+      setTimeout(() => {
+        setQuestion(generateQuestion());
+        setUserAnswer('');
+        setFeedback('');
+      }, 1000);
+    } else {
+      setFeedback('Try again! 💪');
+      setFeedbackColor('text-red-500');
+      setConsecutiveFailures(prev => prev + 1);
+    }
+  }, [userAnswer, question.answer]);
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      checkAnswer();
+    }
+  };
+
+  const resetGame = () => {
+    setScore({ correct: 0, total: 0 });
+    setQuestion(generateQuestion());
+    setUserAnswer('');
+    setFeedback('');
+    setConsecutiveFailures(0);
+  };
+
+  const showAnswer = () => {
+    setFeedback(`The answer is ${question.answer}`);
+    setFeedbackColor('text-blue-500');
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-200">
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 transition-colors duration-200">
-          <header className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <Bell className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <h1 className="text-3xl font-bold text-gray-800 dark:text-white">TaskMaster</h1>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowNewTodo(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200"
-              >
-                <Plus className="w-5 h-5" />
-                New Task
-              </button>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="p-2 text-gray-600 hover:text-indigo-600 dark:text-gray-300 dark:hover:text-indigo-400 transition-colors duration-200"
-              >
-                <Settings className="w-6 h-6" />
-              </button>
-            </div>
-          </header>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 relative">
+        <GameHeader />
 
-          <TodoList
-            todos={todos}
-            setTodos={setTodos}
-            settings={settings}
-          />
+        <QuestionPanel
+          question={question}
+          userAnswer={userAnswer}
+          consecutiveFailures={consecutiveFailures}
+          onAnswerChange={setUserAnswer}
+          onKeyPress={handleKeyPress}
+          onCheck={checkAnswer}
+          onShowAnswer={showAnswer}
+        />
+
+        {feedback && (
+          <p className={`text-center text-lg font-semibold mb-4 ${feedbackColor}`}>
+            {feedback}
+          </p>
+        )}
+
+        <ScorePanel score={score} onReset={resetGame} />
+
+        <div className="absolute bottom-2 right-4 text-sm text-gray-400">
+          Credits: Salih Orhan
         </div>
       </div>
-
-      {showSettings && (
-        <SettingsModal
-          settings={settings}
-          setSettings={setSettings}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
-
-      {showNewTodo && (
-        <NewTodoModal
-          onClose={() => setShowNewTodo(false)}
-          onAdd={(todo) => {
-            setTodos([...todos, todo]);
-            setShowNewTodo(false);
-          }}
-        />
-      )}
     </div>
   );
 }
